@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-mesh-ui"
+version = "1.0.0"
+description = "Real-time Topology Visualizer & Observability Dashboard for mcp-mesh"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Van Schulist", email = "van@existentialcloud.ccwu.cc"}
+]
+keywords = [
+    "mcp",
+    "mcp-mesh",
+    "model-context-protocol",
+    "dashboard",
+    "observability",
+    "topology",
+    "token-optimization",
+    "telemetry",
+    "tui"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Monitoring"
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/VanSchulist/mcp-mesh-ui"
+Repository = "https://github.com/VanSchulist/mcp-mesh-ui"
+Issues = "https://github.com/VanSchulist/mcp-mesh-ui/issues"
+
+[project.scripts]
+mcp-mesh-ui = "mcp_mesh_ui.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mcp_mesh_ui*"]
+[tool.setuptools.package-data]
+mcp_mesh_ui = ["static/*"]
