@@ -30,6 +30,33 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
     store: MeshTelemetryStore = MeshTelemetryStore()
     static_dir: Path = Path(__file__).parent / "static"
 
+    def _get_allowed_origin(self) -> Optional[str]:
+        """Validates Origin header against safe local loopback patterns."""
+        origin = self.headers.get("Origin")
+        if not origin:
+            return None
+        try:
+            parsed = urllib.parse.urlparse(origin)
+            hostname = (parsed.hostname or "").lower()
+            if hostname in ("localhost", "127.0.0.1", "::1"):
+                return origin
+        except Exception:
+            pass
+        return None
+
+    def do_OPTIONS(self) -> None:
+        """Handles CORS preflight requests securely without wildcards."""
+        allowed_origin = self._get_allowed_origin()
+        if not allowed_origin:
+            self.send_response(403)
+            self.end_headers()
+            return
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", allowed_origin)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -63,6 +90,11 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def do_POST(self) -> None:
+        # Cross-origin protection for stateful actions
+        if self.headers.get("Origin") and not self._get_allowed_origin():
+            self.send_error(403, "Cross-Origin Request Blocked")
+            return
+
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/simulate":
             count = self.store.simulate_traffic(num_calls=25)
@@ -86,16 +118,24 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        allowed_origin = self._get_allowed_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
         self.end_headers()
         self.wfile.write(body)
 
     def _handle_sse_stream(self) -> None:
+        if self.headers.get("Origin") and not self._get_allowed_origin():
+            self.send_error(403, "CORS Origin Not Allowed")
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        allowed_origin = self._get_allowed_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
         self.end_headers()
 
         try:
@@ -109,8 +149,12 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, format: str, *args: any) -> None:
         # Silence routine static request logging to keep console clean
-        if "/static/" not in args[0]:
-            sys.stderr.write(f"[mcp-mesh-ui] {args[0]} - {args[1]}\n")
+        try:
+            msg = format % args if args else format
+            if "/static/" not in msg:
+                sys.stderr.write(f"[mcp-mesh-ui] {msg}\n")
+        except Exception:
+            pass
 
 
 def run_server(

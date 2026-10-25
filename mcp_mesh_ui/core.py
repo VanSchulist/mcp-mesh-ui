@@ -144,6 +144,10 @@ class MeshTelemetryStore:
                         last_seen TEXT NOT NULL,
                         PRIMARY KEY (tool_a, tool_b)
                     );
+
+                    CREATE INDEX IF NOT EXISTS idx_calls_timestamp ON calls(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_calls_tool ON calls(server_id, tool_name);
+                    CREATE INDEX IF NOT EXISTS idx_calls_session ON calls(session_id);
                     """
                 )
         finally:
